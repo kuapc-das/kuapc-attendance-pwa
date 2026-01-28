@@ -1,5 +1,5 @@
-const CACHE_NAME = 'kuapc-das-v5';
-const ASSETS_TO_CACHE = [
+const CACHE_NAME = 'kuapc-das-v6';
+const ASSETS = [
   './',
   './index.html',
   './manifest.json',
@@ -8,30 +8,16 @@ const ASSETS_TO_CACHE = [
 ];
 
 self.addEventListener('install', event=>{
-    event.waitUntil(
-        caches.open(CACHE_NAME).then(cache=>{
-            console.log('KUAPC-DAS: Caching system assets');
-            return cache.addAll(ASSETS_TO_CACHE);
-        })
-    );
-    self.skipWaiting();
+  event.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(ASSETS)));
+  self.skipWaiting();
 });
 
 self.addEventListener('activate', event=>{
-    event.waitUntil(
-        caches.keys().then(keys=>Promise.all(
-            keys.filter(key=>key!==CACHE_NAME).map(key=>caches.delete(key))
-        ))
-    );
-    self.clients.claim();
+  event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k)))));
+  self.clients.claim();
 });
 
 self.addEventListener('fetch', event=>{
-    if(event.request.url.includes('script.google.com')){
-        event.respondWith(fetch(event.request));
-        return;
-    }
-    event.respondWith(
-        caches.match(event.request).then(cachedResp=>cachedResp||fetch(event.request))
-    );
+  if(event.request.url.includes('script.google.com')) return event.respondWith(fetch(event.request));
+  event.respondWith(caches.match(event.request).then(resp=>resp||fetch(event.request)));
 });
