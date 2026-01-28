@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kuapc-das-v2';
+const CACHE_NAME = 'kuapc-das-v3';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -59,3 +59,4 @@ self.addEventListener('fetch', (event) => {
   );
 
 });
+
