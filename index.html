@@ -3,20 +3,87 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>KUAPC Attendance Pro</title>
+<title>KUAPC-DAS Attendance Pro</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#001f3f">
 <script src="https://unpkg.com/html5-qrcode@2.3.8/minified/html5-qrcode.min.js"></script>
 <style>
-:root { --navy: #001f3f; --success: #2ECC40; --warning: #FF851B; --error: #FF4136; --bg: #f4f7f9; }
-body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg); margin: 0; display: flex; flex-direction: column; align-items: center; height: 100vh; overflow: hidden; }
-header { width: 100%; background: var(--navy); padding: 25px 0; display: flex; justify-content: center; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+:root { 
+    --navy: #001f3f; 
+    --success: #2ECC40; 
+    --warning: #FF851B; 
+    --error: #FF4136; 
+    --bg: #f4f7f9; 
+}
+body { 
+    font-family: -apple-system, system-ui, sans-serif; 
+    background: var(--bg); 
+    margin: 0; 
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+    height: 100vh; 
+    overflow: hidden; 
+}
+header { 
+    width: 100%; 
+    background: var(--navy); 
+    padding: 25px 0; 
+    display: flex; 
+    justify-content: center; 
+    align-items: center; 
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2); 
+    position: relative; 
+}
 .logo { height: 45px; }
-.scanner-card { background: white; width: 90%; max-width: 400px; margin-top: -15px; border-radius: 20px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; box-sizing: border-box; z-index: 5; }
-#reader { width: 100%; border-radius: 12px; overflow: hidden; border: none !important; }
-#status-overlay { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); width: 85%; max-width: 340px; padding: 20px; border-radius: 16px; color: white; font-weight: 700; text-align: center; display: none; z-index: 1000; box-shadow: 0 8px 25px rgba(0,0,0,0.3); animation: slideDown 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+.scanner-card { 
+    background: white; 
+    width: 90%; 
+    max-width: 400px; 
+    margin-top: -15px; 
+    border-radius: 20px; 
+    padding: 20px; 
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1); 
+    text-align: center; 
+    box-sizing: border-box; 
+    z-index: 5; 
+}
+#reader { 
+    width: 100%; 
+    border-radius: 12px; 
+    overflow: hidden; 
+    border: none !important; 
+}
+#status-overlay { 
+    position: fixed; 
+    top: 20px; 
+    left: 50%; 
+    transform: translateX(-50%); 
+    width: 85%; 
+    max-width: 340px; 
+    padding: 20px; 
+    border-radius: 16px; 
+    color: white; 
+    font-weight: 700; 
+    text-align: center; 
+    display: none; 
+    z-index: 1000; 
+    box-shadow: 0 8px 25px rgba(0,0,0,0.3); 
+    animation: slideDown 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+}
 @keyframes slideDown { from { top: -100px; opacity: 0; } to { top: 20px; opacity: 1; } }
-.setup-btn, .sync-btn { margin-top: 15px; background: #eee; border: none; color: #555; padding: 12px 24px; border-radius: 12px; font-weight: 600; cursor: pointer; width: 100%; display: block; }
+.setup-btn, .sync-btn { 
+    margin-top: 15px; 
+    background: #eee; 
+    border: none; 
+    color: #555; 
+    padding: 12px 24px; 
+    border-radius: 12px; 
+    font-weight: 600; 
+    cursor: pointer; 
+    width: 100%; 
+    display: block; 
+}
 .sync-btn { background: var(--navy); color: white; margin-top: 10px; }
 .v-info { margin-top: 15px; font-size: 0.8rem; color: #888; font-weight: 500; }
 </style>
@@ -38,8 +105,10 @@ header { width: 100%; background: var(--navy); padding: 25px 0; display: flex; j
 <audio id="beep" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"></audio>
 
 <script>
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwrCFfksl-gEdJCJnFJ4X74kBiJmWXLvnabdIVFthpQcLiw4btoFNmjSJWUzxxD0_sNAQ/exec";
-const CACHE_QUEUE_KEY = 'offlineQueue';
+// --- CONFIGURATION ---
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwrCFfksl-gEdJCJnFJ4X74kBiJmWXLvnabdIVFthpQcLiw4btoFNmjSJWUzxxD0_sNAQ/exec"; 
+const QUEUE_KEY = 'offlineQueue';
+const CACHE_BUSTER = "?v=" + Date.now();
 
 let volunteerToken = localStorage.getItem('vtoken') || "";
 const html5QrCode = new Html5Qrcode("reader");
@@ -48,81 +117,122 @@ const syncBtn = document.getElementById('sync-btn');
 
 if(volunteerToken) document.getElementById('v-name').innerText = "Logged in as: " + volunteerToken;
 
+// --- CORE FUNCTIONS ---
 function setConfig() {
     const token = prompt("Enter Volunteer Token:", volunteerToken);
-    if(token){ localStorage.setItem('vtoken', token.trim()); location.reload(); }
+    if (token) { 
+        localStorage.setItem('vtoken', token.trim()); 
+        volunteerToken = token.trim();
+        document.getElementById('v-name').innerText = "Logged in as: " + volunteerToken;
+        showStatus("LOGIN SUCCESSFUL", "var(--success)");
+        startScanner();
+    }
+}
+
+function startScanner() {
+    html5QrCode.start({ facingMode: "environment" }, { fps: 15, qrbox: 250 }, onScanSuccess)
+        .catch(err => showStatus("CAMERA ERROR", "var(--error)"));
 }
 
 function updateQueueBadge() {
-    const queue = JSON.parse(localStorage.getItem(CACHE_QUEUE_KEY) || "[]");
+    const queue = JSON.parse(localStorage.getItem(QUEUE_KEY) || "[]");
     syncBtn.innerText = `Sync Queue (${queue.length})`;
     syncBtn.style.display = queue.length > 0 ? "block" : "none";
 }
 
 async function sendScan(id) {
     try {
-        const resp = await fetch(`${SCRIPT_URL}?pwa=1&id=${encodeURIComponent(id)}&vtoken=${encodeURIComponent(volunteerToken)}`);
-        const data = await resp.json();
-        showStatus(data.message.toUpperCase(), data.status === "success" ? "var(--success)" : (data.status === "warning" ? "var(--warning)" : "var(--error)"));
+        const response = await fetch(`${SCRIPT_URL}${CACHE_BUSTER}&pwa=1&id=${encodeURIComponent(id)}&vtoken=${encodeURIComponent(volunteerToken)}`);
+        const data = await response.json();
+        if(data.status) {
+            showStatus(data.message.toUpperCase(), data.status === "success" ? "var(--success)" : (data.status === "warning" ? "var(--warning)" : "var(--error)"));
+        }
         return data.status === "success" || data.status === "warning";
-    } catch(e) { return false; }
-}
-
-async function processQueue(manual=false){
-    const queue = JSON.parse(localStorage.getItem(CACHE_QUEUE_KEY) || "[]");
-    if(!queue.length){ if(manual) showStatus("QUEUE EMPTY","var(--navy)"); updateQueueBadge(); return; }
-    if(manual) showStatus("SYNCING...","var(--navy)");
-    for(let i=0;i<queue.length;i++){
-        const success = await sendScan(queue[i]);
-        if(success){ queue.splice(i,1); i--; }
+    } catch (err) {
+        return false;
     }
-    localStorage.setItem(CACHE_QUEUE_KEY, JSON.stringify(queue));
-    updateQueueBadge();
-    if(manual && queue.length===0) showStatus("QUEUE SYNCED","var(--success)");
 }
 
-async function onScanSuccess(decodedText){
-    if(isProcessing || !volunteerToken) return;
+async function processQueue(manual=false) {
+    const queue = JSON.parse(localStorage.getItem(QUEUE_KEY) || "[]");
+    if (!queue.length) { 
+        if(manual) showStatus("QUEUE EMPTY", "var(--navy)"); 
+        updateQueueBadge(); 
+        return; 
+    }
+    
+    if(manual) showStatus("SYNCING...", "var(--navy)");
+
+    for (let i = 0; i < queue.length; i++) {
+        const success = await sendScan(queue[i]);
+        if (success) {
+            queue.splice(i, 1);
+            i--; 
+        }
+    }
+    localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+    updateQueueBadge();
+    if(manual && queue.length === 0) showStatus("QUEUE SYNCED", "var(--success)");
+}
+
+async function onScanSuccess(decodedText) {
+    if (isProcessing || !volunteerToken) return;
     isProcessing = true;
+    
     document.getElementById('beep').play();
-    if(navigator.vibrate) navigator.vibrate(50);
-    showStatus("PROCESSING...","var(--navy)");
+    if (navigator.vibrate) navigator.vibrate(50);
+
+    showStatus("PROCESSING...", "var(--navy)");
 
     let sent = false;
-    if(navigator.onLine) sent = await sendScan(decodedText);
+    if (navigator.onLine) {
+        sent = await sendScan(decodedText);
+    }
 
-    if(!sent){
-        const queue = JSON.parse(localStorage.getItem(CACHE_QUEUE_KEY) || "[]");
+    if (!sent) {
+        const queue = JSON.parse(localStorage.getItem(QUEUE_KEY) || "[]");
         queue.push(decodedText);
-        localStorage.setItem(CACHE_QUEUE_KEY, JSON.stringify(queue));
-        if(navigator.vibrate) navigator.vibrate([100,50,100]);
-        showStatus("OFFLINE: SCAN QUEUED","var(--warning)");
+        localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+        
+        if (navigator.vibrate) navigator.vibrate([100, 50, 100]); 
+        showStatus("OFFLINE: SCAN QUEUED", "var(--warning)");
     }
 
     updateQueueBadge();
-    setTimeout(()=>{ isProcessing=false; hideStatus(); },3000);
+    setTimeout(() => { isProcessing = false; hideStatus(); }, 3000);
 }
 
-function showStatus(msg,color){ const div = document.getElementById('status-overlay'); div.innerText=msg; div.style.backgroundColor=color; div.style.display='block'; }
-function hideStatus(){ document.getElementById('status-overlay').style.display='none'; }
-
-if(volunteerToken){
-    html5QrCode.start({facingMode:"environment"},{fps:15,qrbox:250},onScanSuccess)
-        .catch(err=>showStatus("CAMERA ERROR","var(--error)"));
-}else{
-    showStatus("LOGIN REQUIRED","var(--navy)");
+function showStatus(msg, color) { 
+    const div = document.getElementById('status-overlay'); 
+    div.innerText = msg; 
+    div.style.backgroundColor = color; 
+    div.style.display = 'block'; 
 }
 
-// Service Worker
-if('serviceWorker' in navigator){
-    window.addEventListener('load',()=>{ navigator.serviceWorker.register('/sw.js').then(()=>console.log('SW Registered')).catch(()=>console.log('SW Failed')); });
+function hideStatus() { document.getElementById('status-overlay').style.display = 'none'; }
+
+// --- INITIALIZATION ---
+if (volunteerToken) startScanner();
+else showStatus("LOGIN REQUIRED", "var(--navy)");
+
+// Register Service Worker
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+            .then(reg => console.log('SW Registered'))
+            .catch(err => console.log('SW Failed', err));
+    });
 }
 
-// Online Event
-window.addEventListener('online',()=>{ showStatus("BACK ONLINE: SYNCING...","var(--success)"); processQueue(); });
+// Handle Connectivity
+window.addEventListener('online', () => {
+    showStatus("BACK ONLINE: SYNCING...", "var(--success)");
+    processQueue();
+});
 
 updateQueueBadge();
-if(navigator.onLine) processQueue();
+if (navigator.onLine) processQueue();
 </script>
+
 </body>
 </html>
