@@ -130,10 +130,23 @@ async function processQueue(manual=false) {
     }
 }
 
+// Logic to extract ID from URL or use raw text
+function extractId(text) {
+    try {
+        const url = new URL(text);
+        const params = new URLSearchParams(url.search);
+        return params.get("id") || text; // Returns value of 'id' or original text if not found
+    } catch (e) {
+        return text; // Not a URL, return raw scan
+    }
+}
+
 async function onScanSuccess(decodedText) {
     if (isProcessing || !volunteerToken) return;
     isProcessing = true;
     
+    const cleanId = extractId(decodedText); // CLEAN THE ID HERE
+
     document.getElementById('beep').play();
     if (navigator.vibrate) navigator.vibrate(50);
 
@@ -141,12 +154,12 @@ async function onScanSuccess(decodedText) {
 
     let sent = false;
     if (navigator.onLine) {
-        sent = await sendScan(decodedText);
+        sent = await sendScan(cleanId);
     }
 
     if (!sent) {
         const queue = JSON.parse(localStorage.getItem(QUEUE_KEY) || "[]");
-        queue.push(decodedText);
+        queue.push(cleanId);
         localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
         
         if (navigator.vibrate) navigator.vibrate([100, 50, 100]); 
@@ -190,4 +203,3 @@ if (navigator.onLine) processQueue();
 </script>
 </body>
 </html>
-
