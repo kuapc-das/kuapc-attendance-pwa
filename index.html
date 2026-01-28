@@ -1,25 +1,27 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>KUAPC Attendance Pro</title>
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#001f3f">
-<script src="https://unpkg.com/html5-qrcode"></script>
-<style>
-:root { --navy: #001f3f; --success: #2ECC40; --warning: #FF851B; --error: #FF4136; --bg: #f4f7f9; }
-body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg); margin: 0; display: flex; flex-direction: column; align-items: center; height: 100vh; overflow: hidden; }
-header { width: 100%; background: var(--navy); padding: 25px 0; display: flex; justify-content: center; align-items: center; box-shadow: 0 4px 15px rgba(0,0,0,0.2); position: relative; }
-.logo { height: 45px; }
-.scanner-card { background: white; width: 90%; max-width: 400px; margin-top: -15px; border-radius: 20px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; box-sizing: border-box; z-index: 5; }
-#reader { width: 100%; border-radius: 12px; overflow: hidden; border: none !important; }
-#status-overlay { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); width: 85%; max-width: 340px; padding: 20px; border-radius: 16px; color: white; font-weight: 700; text-align: center; display: none; z-index: 1000; box-shadow: 0 8px 25px rgba(0,0,0,0.3); animation: slideDown 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-@keyframes slideDown { from { top: -100px; opacity: 0; } to { top: 20px; opacity: 1; } }
-.setup-btn, .sync-btn { margin-top: 15px; background: #eee; border: none; color: #555; padding: 12px 24px; border-radius: 12px; font-weight: 600; cursor: pointer; width: 100%; display: block; }
-.sync-btn { background: var(--navy); color: white; margin-top: 10px; }
-.v-info { margin-top: 15px; font-size: 0.8rem; color: #888; font-weight: 500; }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>KUAPC-DAS</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#001f3f">
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/minified/html5-qrcode.min.js"></script>
+    <style>
+        :root { --navy: #001f3f; --success: #2ECC40; --warning: #FF851B; --error: #FF4136; --bg: #f4f7f9; }
+        body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg); margin: 0; display: flex; flex-direction: column; align-items: center; height: 100vh; overflow: hidden; }
+        header { width: 100%; background: var(--navy); padding: 25px 0; display: flex; justify-content: center; align-items: center; box-shadow: 0 4px 15px rgba(0,0,0,0.2); position: relative; }
+        .logo { height: 45px; }
+        .scanner-card { background: white; width: 90%; max-width: 400px; margin-top: -15px; border-radius: 20px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; box-sizing: border-box; z-index: 5; }
+        #reader { width: 100%; border-radius: 12px; overflow: hidden; border: none !important; background: #000; }
+        #status-overlay { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); width: 85%; max-width: 340px; padding: 20px; border-radius: 16px; color: white; font-weight: 700; text-align: center; display: none; z-index: 1000; box-shadow: 0 8px 25px rgba(0,0,0,0.3); animation: slideDown 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        @keyframes slideDown { from { top: -100px; opacity: 0; } to { top: 20px; opacity: 1; } }
+        .setup-btn, .sync-btn, .clear-btn { margin-top: 15px; border: none; padding: 14px 24px; border-radius: 12px; font-weight: 600; cursor: pointer; width: 100%; display: block; transition: 0.2s; }
+        .setup-btn { background: #eee; color: #555; }
+        .sync-btn { background: var(--navy); color: white; display: none; }
+        .clear-btn { background: transparent; border: 1px solid var(--error); color: var(--error); margin-top: 8px; display: none; }
+        .v-info { margin-top: 15px; font-size: 0.8rem; color: #888; font-weight: 500; }
+    </style>
 </head>
 <body>
 
@@ -30,7 +32,9 @@ header { width: 100%; background: var(--navy); padding: 25px 0; display: flex; j
 <div class="scanner-card">
     <div id="reader"></div>
     <div id="v-name" class="v-info">Not Logged In</div>
+    
     <button class="sync-btn" id="sync-btn" onclick="processQueue(true)">Sync Queue (0)</button>
+    <button class="clear-btn" id="clear-btn" onclick="clearQueue()">Clear Queue</button>
     <button class="setup-btn" onclick="setConfig()">Volunteer Login</button>
 </div>
 
@@ -45,20 +49,42 @@ const QUEUE_KEY = 'offlineQueue';
 let volunteerToken = localStorage.getItem('vtoken') || "";
 const html5QrCode = new Html5Qrcode("reader");
 let isProcessing = false;
-const syncBtn = document.getElementById('sync-btn');
 
-if(volunteerToken) document.getElementById('v-name').innerText = "Logged in as: " + volunteerToken;
+const syncBtn = document.getElementById('sync-btn');
+const clearBtn = document.getElementById('clear-btn');
+
+if(volunteerToken) document.getElementById('v-name').innerText = "Logged in: " + volunteerToken;
 
 // --- CORE FUNCTIONS ---
 function setConfig() {
     const token = prompt("Enter Volunteer Token:", volunteerToken);
-    if (token) { localStorage.setItem('vtoken', token.trim()); location.reload(); }
+    if (token) { 
+        localStorage.setItem('vtoken', token.trim()); 
+        location.reload(); 
+    }
 }
 
 function updateQueueBadge() {
     const queue = JSON.parse(localStorage.getItem(QUEUE_KEY) || "[]");
     syncBtn.innerText = `Sync Queue (${queue.length})`;
-    syncBtn.style.display = queue.length > 0 ? "block" : "none";
+    
+    if (queue.length > 0) {
+        syncBtn.style.display = "block";
+        clearBtn.style.display = "block";
+    } else {
+        syncBtn.style.display = "none";
+        clearBtn.style.display = "none";
+    }
+}
+
+function clearQueue() {
+    const queue = JSON.parse(localStorage.getItem(QUEUE_KEY) || "[]");
+    if (confirm(`Delete ${queue.length} unsynced scans? This cannot be undone.`)) {
+        localStorage.setItem(QUEUE_KEY, "[]");
+        updateQueueBadge();
+        showStatus("QUEUE CLEARED", "var(--error)");
+        setTimeout(hideStatus, 2000);
+    }
 }
 
 async function sendScan(id) {
@@ -75,12 +101,14 @@ async function sendScan(id) {
 }
 
 async function processQueue(manual=false) {
-    const queue = JSON.parse(localStorage.getItem(QUEUE_KEY) || "[]");
-    if (!queue.length) { 
-        if(manual) showStatus("QUEUE EMPTY", "var(--navy)"); 
-        updateQueueBadge(); 
-        return; 
+    if (!navigator.onLine) {
+        if(manual) showStatus("OFFLINE: CANNOT SYNC", "var(--error)");
+        setTimeout(hideStatus, 2000);
+        return;
     }
+
+    const queue = JSON.parse(localStorage.getItem(QUEUE_KEY) || "[]");
+    if (!queue.length) return;
     
     if(manual) showStatus("SYNCING...", "var(--navy)");
 
@@ -89,11 +117,17 @@ async function processQueue(manual=false) {
         if (success) {
             queue.splice(i, 1);
             i--; 
+            localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+            updateQueueBadge();
+        } else {
+            break;
         }
     }
-    localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
-    updateQueueBadge();
-    if(manual && queue.length === 0) showStatus("QUEUE SYNCED", "var(--success)");
+    
+    if(manual && queue.length === 0) {
+        showStatus("SYNC COMPLETE", "var(--success)");
+        setTimeout(hideStatus, 2000);
+    }
 }
 
 async function onScanSuccess(decodedText) {
@@ -101,7 +135,7 @@ async function onScanSuccess(decodedText) {
     isProcessing = true;
     
     document.getElementById('beep').play();
-    if (navigator.vibrate) navigator.vibrate(50); // Initial capture vibration
+    if (navigator.vibrate) navigator.vibrate(50);
 
     showStatus("PROCESSING...", "var(--navy)");
 
@@ -115,13 +149,12 @@ async function onScanSuccess(decodedText) {
         queue.push(decodedText);
         localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
         
-        // Haptic feedback for offline capture
         if (navigator.vibrate) navigator.vibrate([100, 50, 100]); 
-        showStatus("OFFLINE: SCAN QUEUED", "var(--warning)");
+        showStatus("SAVED OFFLINE", "var(--warning)");
     }
 
     updateQueueBadge();
-    setTimeout(() => { isProcessing = false; hideStatus(); }, 3000);
+    setTimeout(() => { isProcessing = false; hideStatus(); }, 2500);
 }
 
 function showStatus(msg, color) { 
@@ -141,16 +174,12 @@ if (volunteerToken) {
     showStatus("LOGIN REQUIRED", "var(--navy)");
 }
 
-// Register Service Worker
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
-            .then(reg => console.log('SW Registered'))
-            .catch(err => console.log('SW Failed', err));
+        navigator.serviceWorker.register('./sw.js').catch(err => console.log(err));
     });
 }
 
-// Handle Connectivity
 window.addEventListener('online', () => {
     showStatus("BACK ONLINE: SYNCING...", "var(--success)");
     processQueue();
@@ -160,5 +189,4 @@ updateQueueBadge();
 if (navigator.onLine) processQueue();
 </script>
 </body>
-
 </html>
