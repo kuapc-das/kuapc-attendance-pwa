@@ -1,7 +1,0 @@
-{
-  "name": "KUAPC Digital Attendance",
-  "description": "Professional attendance tracking system for KUAPC volunteers.",
-  "requestFramePermissions": [
-    "camera"
-  ]
-}
